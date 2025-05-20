@@ -6,7 +6,7 @@ fn init_driver_sdr(channel: usize, mut num: usize, mut freq: f64) -> Option<soap
         println!("{}", dev);
         let dev = soapysdr::Device::new(dev).expect("Error opening device");
         println!("{:?}", dev.list_gains(Rx, channel));
-        dev.set_frequency(soapysdr::Direction::Rx, channel,  433690000.0, ()).expect("Failed to set frequency");
+        dev.set_frequency(soapysdr::Direction::Rx, channel,  freq, ()).expect("Failed to set frequency");
         match dev.set_gain_element(Rx, channel, "VGA", 32.0) {
             Ok(_) => println!("set VGA to 8"),
             Err(e) => {
