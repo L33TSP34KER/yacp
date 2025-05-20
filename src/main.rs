@@ -54,6 +54,29 @@ fn text_to_iq(text: &str) -> Vec<Complex<f32>> {
         })
         .collect()
 }
+
+fn iq_to_text(samples: &[Complex<f32>]) -> String {
+    // Step 1: Convert samples to bits
+    let bits: Vec<u8> = samples.iter()
+        .map(|s| if s.re > 0.0 { 1 } else { 0 }) // threshold at 0.0
+        .collect();
+
+    // Step 2: Group bits into bytes
+    let mut bytes: Vec<u8> = vec![];
+    for chunk in bits.chunks(8) {
+        if chunk.len() < 8 {
+            break; // ignore last incomplete byte
+        }
+        let mut byte = 0u8;
+        for (i, bit) in chunk.iter().enumerate() {
+            byte |= bit << (7 - i);
+        }
+        bytes.push(byte);
+    }
+
+    // Step 3: Convert bytes to String
+    String::from_utf8_lossy(&bytes).to_string()
+}
 fn emit(device: soapysdr::Device, channel: usize) {
     let mut tx_stream = device.tx_stream::<Complex<f32>>(&[channel])
         .expect("Failed to create TX stream");
@@ -70,6 +93,26 @@ fn emit(device: soapysdr::Device, channel: usize) {
 
     // 6. Deactivate TX and exit
     tx_stream.deactivate(None).expect("Failed to deactivate TX");  // :contentReference[oaicite:29]{index=29}
+}
+
+fn receive(device: soapysdr::Device, channel: usize) {
+    let mut rx_stream = device.rx_stream::<Complex<f32>>(&[channel])
+        .expect("Failed to create RX stream");
+
+    let mut buf = vec![Complex::new(0.0, 0.0); rx_stream.mtu().unwrap()];
+
+    rx_stream.activate(None).expect("Failed to activate RX stream");
+
+    for _ in 0..10 {
+        let read_len = buf.len();
+        let len = rx_stream.read(&mut [&mut buf[..read_len]], 1_000_000)
+            .expect("Read failed");
+
+        let text = iq_to_text(&buf[..len]);
+        println!("Received text: {}", text);
+    }
+
+    rx_stream.deactivate(None).expect("Failed to deactivate RX stream");
 }
 
 fn main() {
