@@ -38,6 +38,39 @@ fn init_driver_sdr(channel: usize, mut num: usize, mut freq: f64) -> Option<soap
     }
     None
 }
+fn text_to_iq(text: &str) -> Vec<Complex<f32>> {
+    text.bytes()
+        .flat_map(|b| {
+            // Each byte becomes 8 samples (bit by bit)
+            (0..8).map(move |i| {
+                let bit = (b >> (7 - i)) & 1;
+                // Bit 1 => Complex { re: 1.0 }, Bit 0 => Complex { re: -1.0 }
+                if bit == 1 {
+                    Complex::new(1.0, 0.0)
+                } else {
+                    Complex::new(-1.0, 0.0)
+                }
+            })
+        })
+        .collect()
+}
+fn emit(device: soapysdr::Device, channel: usize) {
+    let mut tx_stream = device.tx_stream::<Complex<f32>>(&[channel])
+        .expect("Failed to create TX stream");
+                                                       //
+    tx_stream.activate(None).expect("Failed to activate TX");
+    let text: &str = "Big shout to O Block, we spamming this text!";   // Gen Z vibe
+    let mut payload: Vec<Complex<f32>> = text_to_iq(text);
+    if payload.len() < 1500 {
+    }
+    let written = tx_stream
+        .write(&[&payload[..]], None, false, 10000000)     // timeout = 1 ms 
+        .expect("TX write failed");
+    println!("Sent {} bytes of text", written);
+
+    // 6. Deactivate TX and exit
+    tx_stream.deactivate(None).expect("Failed to deactivate TX");  // :contentReference[oaicite:29]{index=29}
+}
 
 fn main() {
     let channel: usize = 0;
@@ -45,7 +78,7 @@ fn main() {
     let freq =  433690000.0;
     match init_driver_sdr(channel, num, freq) {
         Some(device) => {
-            println!("Device found");
+            emit(device, channel);
         }
         None => {
             println!("No Device found");
