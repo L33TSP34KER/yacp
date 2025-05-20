@@ -77,6 +77,13 @@ fn iq_to_text(samples: &[Complex<f32>]) -> String {
     // Step 3: Convert bytes to String
     String::from_utf8_lossy(&bytes).to_string()
 }
+
+fn calc_power(samples: &[Complex<f32>]) -> f32 {
+    samples.iter()
+        .map(|s| s.re * s.re + s.im * s.im)
+        .sum::<f32>() / samples.len() as f32
+}
+
 fn emit(device: soapysdr::Device, channel: usize) {
     let mut tx_stream = device.tx_stream::<Complex<f32>>(&[channel])
         .expect("Failed to create TX stream");
@@ -107,9 +114,15 @@ fn receive(device: soapysdr::Device, channel: usize) {
         let read_len = buf.len();
         let len = rx_stream.read(&mut [&mut buf[..read_len]], 1_000_000)
             .expect("Read failed");
+        let power = calc_power(&buf[..len]);
+        println!("Power: {}", power);
 
-        let text = iq_to_text(&buf[..len]);
-        println!("Received text: {}", text);
+        if power > 0.001 {
+            let text = iq_to_text(&buf[..len]); // your decoder func from earlier
+            println!(" Received: {}", text);
+        } else {
+            println!(" Low power, skipping...");
+        }
     }
 
     rx_stream.deactivate(None).expect("Failed to deactivate RX stream");
