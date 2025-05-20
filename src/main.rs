@@ -290,13 +290,9 @@ fn main() {
 
                 if usrinput.trim() == "transmit" {
                     device.set_gain(Tx, channel, 51.0).ok();
-                    let mut tx_stream = device.tx_stream::<Complex<f32>>(&[channel])
-                        .expect("Failed to create TX stream");
-                    tx_stream.activate(None).expect("Failed to activate TX");
                     std::thread::sleep_ms(1000);
-                    emit(&device, &mut tx_stream, channel);
+                    emit(&device, channel);
                     std::thread::sleep_ms(1000);
-                    tx_stream.deactivate(None).expect("Failed to deactivate TX");
                 } else if usrinput.trim() == "receive" {
                     println!("receive");
                 }
