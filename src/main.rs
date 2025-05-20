@@ -1,3 +1,5 @@
+use soapysdr::TxStream;
+
 use soapysdr::Direction::{Rx, Tx};
 use num_complex::Complex;
 
@@ -11,6 +13,20 @@ fn init_driver_sdr(channel: usize, mut num: usize, mut freq: f64) -> Option<soap
             Ok(_) => println!("set VGA to 8"),
             Err(e) => {
                 println!("error while setting up VGA {e}");
+                break;
+            }
+        }
+        match dev.set_gain_element(Tx, channel, "VGA", 32.0) {
+            Ok(_) => println!("set VGA to 8"),
+            Err(e) => {
+                println!("error while setting up VGA {e}");
+                break;
+            }
+        }
+        match dev.set_gain_element(Tx, channel, "LNA", 32.0) {
+            Ok(_) => println!("set LNA to 8"),
+            Err(e) => {
+                println!("error while setting up LNA {e}");
                 break;
             }
         }
@@ -84,22 +100,14 @@ fn calc_power(samples: &[Complex<f32>]) -> f32 {
         .sum::<f32>() / samples.len() as f32
 }
 
-fn emit(device: soapysdr::Device, channel: usize) {
-    let mut tx_stream = device.tx_stream::<Complex<f32>>(&[channel])
-        .expect("Failed to create TX stream");
+fn emit(device: &soapysdr::Device, tx_stream: &mut TxStream<Complex<f32>>, channel: usize) {
                                                        //
-    tx_stream.activate(None).expect("Failed to activate TX");
-    let text: &str = "Big shout to O Block, we spamming this text!";   // Gen Z vibe
+    let text: &str = "A";   // Gen Z vibe
     let mut payload: Vec<Complex<f32>> = text_to_iq(text);
-    if payload.len() < 1500 {
-    }
     let written = tx_stream
-        .write(&[&payload[..]], None, false, 10000000)     // timeout = 1 ms 
+        .write(&[&payload[..]], Some(1_000_000), true, 100000)
         .expect("TX write failed");
     println!("Sent {} bytes of text", written);
-
-    // 6. Deactivate TX and exit
-    tx_stream.deactivate(None).expect("Failed to deactivate TX");  // :contentReference[oaicite:29]{index=29}
 }
 
 fn receive(device: soapysdr::Device, channel: usize) {
@@ -132,9 +140,19 @@ fn main() {
     let channel: usize = 0;
     let num: usize = 0;
     let freq =  433690000.0;
+
     match init_driver_sdr(channel, num, freq) {
         Some(device) => {
-            emit(device, channel);
+            device.set_gain(Tx, channel, 51.0).ok();
+            let mut tx_stream = device.tx_stream::<Complex<f32>>(&[channel])
+                .expect("Failed to create TX stream");
+
+            tx_stream.activate(None).expect("Failed to activate TX");
+            std::thread::sleep_ms(1000);
+            emit(&device, &mut tx_stream, channel);
+
+            std::thread::sleep_ms(1000);
+            tx_stream.deactivate(None).expect("Failed to deactivate TX");
         }
         None => {
             println!("No Device found");
