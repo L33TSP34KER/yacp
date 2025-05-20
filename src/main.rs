@@ -1,7 +1,7 @@
 use soapysdr::Direction::{Rx, Tx};
 use num_complex::Complex;
 
-fn init_driver_sdr(channel: usize, mut num: usize, mut freq: f64) -> soapysdr::Device {
+fn init_driver_sdr(channel: usize, mut num: usize, mut freq: f64) -> Option<soapysdr::Device> {
     for dev in soapysdr::enumerate("").unwrap() {
         println!("{}", dev);
         let dev = soapysdr::Device::new(dev).expect("Error opening device");
@@ -34,8 +34,9 @@ fn init_driver_sdr(channel: usize, mut num: usize, mut freq: f64) -> soapysdr::D
         stream.activate(None).expect("failed to activate stream");
         dev.set_frequency(soapysdr::Direction::Rx, channel,  freq, ()).expect("Failed to set frequency");
         //stream.deactivate(None).expect("failed to deactivate");
+        return Some(dev);
     }
-    return dev;
+    None
 }
 
 fn main() {
@@ -43,6 +44,11 @@ fn main() {
     let num: usize = 0;
     let freq =  433690000.0;
     match init_driver_sdr(channel, num, freq) {
-
+        Some(device) => {
+            println!("Device found");
+        }
+        None => {
+            println!("No Device found");
+        }
     }
 }
