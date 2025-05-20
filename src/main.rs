@@ -1,3 +1,7 @@
+use std::io::Write;
+
+use std::io::stdout;
+
 use soapysdr::TxStream;
 use std::io;
 use soapysdr::Direction::{Rx, Tx};
@@ -71,27 +75,30 @@ fn text_to_iq(text: &str) -> Vec<Complex<f32>> {
         .collect()
 }
 
-fn iq_to_text(samples: &[Complex<f32>]) -> String {
-    // Step 1: Convert samples to bits
-    let bits: Vec<u8> = samples.iter()
-        .map(|s| if s.re > 0.0 { 1 } else { 0 }) // threshold at 0.0
+fn iq_to_text(iq_samples: &[Complex<f32>]) -> String {
+    // Collect the bits from the IQ samples
+    let bits: Vec<u8> = iq_samples
+        .iter()
+        .map(|sample| {
+            // Check if the real part of the sample is positive or negative
+            if sample.re > 0.0 {
+                1
+            } else {
+                0
+            }
+        })
         .collect();
 
-    // Step 2: Group bits into bytes
-    let mut bytes: Vec<u8> = vec![];
+    // Convert the bits back into bytes and then to a string
+    let mut result = Vec::new();
     for chunk in bits.chunks(8) {
-        if chunk.len() < 8 {
-            break; // ignore last incomplete byte
-        }
-        let mut byte = 0u8;
-        for (i, bit) in chunk.iter().enumerate() {
-            byte |= bit << (7 - i);
-        }
-        bytes.push(byte);
+        // Ensure we only deal with complete bytes (8 bits)
+        let byte = chunk.iter().fold(0, |acc, &bit| (acc << 1) | bit);
+        result.push(byte);
     }
 
-    // Step 3: Convert bytes to String
-    String::from_utf8_lossy(&bytes).to_string()
+    // Convert bytes back into characters and then into a string
+    String::from_utf8(result).unwrap()
 }
 
 fn calc_power(samples: &[Complex<f32>]) -> f32 {
@@ -143,22 +150,35 @@ fn main() {
 
     match init_driver_sdr(channel, num, freq) {
         Some(device) => {
-            let mut usrinput = String::new();
-            println!("yacp> ");
-            io::stdin()
-                .read_line(&mut usrinput)
-                .expect("?? wtf");
-            if usrinput.trim() == "transmit" {
-                device.set_gain(Tx, channel, 51.0).ok();
-                let mut tx_stream = device.tx_stream::<Complex<f32>>(&[channel])
-                    .expect("Failed to create TX stream");
-                tx_stream.activate(None).expect("Failed to activate TX");
-                std::thread::sleep_ms(1000);
-                emit(&device, &mut tx_stream, channel);
-                std::thread::sleep_ms(1000);
-                tx_stream.deactivate(None).expect("Failed to deactivate TX");
-            } else if usrinput.trim() == "receive" {
-                println!("receive");
+            loop {
+                let mut usrinput = String::new();
+                print!("yacp> ");
+                let _ = stdout().flush();
+                io::stdin()
+                    .read_line(&mut usrinput)
+                    .expect("?? wtf");
+                if usrinput.trim() == "help" {
+                    println!("===== HELP =====");
+                    println!(" - transmit");
+                    println!(" - receive");
+                    println!(" - exit");
+                }
+                if usrinput.trim() == "exit" {
+                    return;
+                }
+
+                if usrinput.trim() == "transmit" {
+                    device.set_gain(Tx, channel, 51.0).ok();
+                    let mut tx_stream = device.tx_stream::<Complex<f32>>(&[channel])
+                        .expect("Failed to create TX stream");
+                    tx_stream.activate(None).expect("Failed to activate TX");
+                    std::thread::sleep_ms(1000);
+                    emit(&device, &mut tx_stream, channel);
+                    std::thread::sleep_ms(1000);
+                    tx_stream.deactivate(None).expect("Failed to deactivate TX");
+                } else if usrinput.trim() == "receive" {
+                    println!("receive");
+                }
             }
         }
         None => {
