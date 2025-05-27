@@ -1,13 +1,13 @@
-mod utils;
 mod protocols;
 mod transmition;
+mod utils;
 
 use transmition::emit;
 use transmition::receive;
 
+use std::io;
 use std::io::Write;
 use std::io::stdout;
-use std::io;
 
 fn main() {
     let channel: usize = 0;
@@ -24,28 +24,28 @@ fn main() {
                 io::stdin()
                     .read_line(&mut usrinput)
                     .expect("Failed to read input");
-                
+
                 match usrinput.trim() {
                     "help" => {
                         println!("===== HELP =====");
                         println!(" - transmit  : Send a text message");
                         println!(" - receive   : Listen for messages");
                         println!(" - exit      : Quit program");
-                    },
+                    }
                     "exit" => {
                         println!("Goodbye!");
                         return;
-                    },
+                    }
                     "transmit" => {
                         if let Err(e) = emit(&device, channel) {
                             println!("Transmission failed: {}", e);
                         }
-                    },
+                    }
                     "receive" => {
                         if let Err(e) = receive(&device, channel) {
                             println!("Receive failed: {}", e);
                         }
-                    },
+                    }
                     _ => {
                         println!("Unknown command. Type 'help' for available commands.");
                     }
