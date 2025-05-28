@@ -18,19 +18,17 @@ pub fn emit(device: &soapysdr::Device, channel: usize) -> Result<(), Box<dyn std
 
     let mut tx_stream = device.tx_stream(&[channel])?;
 
-    print!("Enter message to transmit: ");
+    print!("input: ");
     let _ = stdout().flush();
     let mut message = String::new();
     io::stdin().read_line(&mut message)?;
     let message = message.trim();
 
     if message.is_empty() {
-        println!("No message entered");
         return Ok(());
     }
 
     let payload = text_to_iq(message);
-    println!("Transmitting: \"{}\" ({} samples)", message, payload.len());
 
     tx_stream.activate(None)?;
 
@@ -39,14 +37,14 @@ pub fn emit(device: &soapysdr::Device, channel: usize) -> Result<(), Box<dyn std
     let timeout_us = 10_000_000;
     for _ in 0..520 {
         match tx_stream.write(&[&payload[..]], Some(timeout_us), false, 100000) {
-            Ok(written) => println!("Successfully transmitted {} samples", written),
-            Err(e) => println!("Transmission error: {}", e),
+            Ok(_) => println!("succesfully transmitted"),
+            Err(e) => println!("error: {}", e),
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
 
     tx_stream.deactivate(None)?;
-    println!("Transmission complete");
+    println!("complete");
     Ok(())
 }
 
