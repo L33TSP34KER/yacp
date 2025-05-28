@@ -54,10 +54,10 @@ pub fn receive(
     device: &soapysdr::Device,
     channel: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Setting up receiver...");
+    println!("setting up receiver...");
 
     if let Err(e) = device.set_gain(Rx, channel, 40.0) {
-        println!("Warning: Could not set overall RX gain: {}", e);
+        println!("can't set rx gain {}", e);
     }
 
     let mut rx_stream = device.rx_stream(&[channel])?;
@@ -71,7 +71,7 @@ pub fn receive(
     let mut all_samples = Vec::new();
     let mut consecutive_timeouts = 0;
 
-    for iteration in 0..200 {
+    for iteration in 0..1275 {
         match rx_stream.read(&mut [&mut buf[..]], 200_000) {
             Ok(len) => {
                 consecutive_timeouts = 0;
@@ -79,8 +79,8 @@ pub fn receive(
                     let power: f32 =
                         buf[..len].iter().map(|s| s.norm_sqr()).sum::<f32>() / len as f32;
 
-                    if iteration % 10 == 0 || power > 0.001 {
-                        println!("Read {} samples, power: {:.6}", len, power);
+                    if iteration % 10 == 0 || power > 0.5 {
+                        println!("reading buf {}, power: {:.6}", len, power);
                     }
 
                     all_samples.extend_from_slice(&buf[..len]);
@@ -98,27 +98,27 @@ pub fn receive(
             }
         }
 
-        std::thread::sleep(std::time::Duration::from_millis(10));
+        std::thread::sleep(std::time::Duration::from_millis(20));
     }
 
     rx_stream.deactivate(None)?;
 
     if all_samples.is_empty() {
-        println!("No samples received");
+        println!("No buf received");
         return Ok(());
     }
 
-    println!("Processing samples...");
+    println!("processing buf");
 
     let total_power: f32 =
         all_samples.iter().map(|s| s.norm_sqr()).sum::<f32>() / all_samples.len() as f32;
-    println!("Average signal power: {:.6}", total_power);
+    println!("average signal power: {:.6}", total_power);
 
     let decoded = iq_to_text(&all_samples);
 
     match decoded {
-        Err(e) => println!("Error: {:}\n", e.to_string()),
-        Ok(text) => println!("Decoded result: \"{}\"", text),
+        Err(e) => println!("error: {:}\n", e.to_string()),
+        Ok(text) => println!("decoded result: \"{}\"", text),
     }
 
     Ok(())
