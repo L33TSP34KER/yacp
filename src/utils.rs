@@ -1,6 +1,6 @@
 use crate::protocols::ReceiveError;
+use crate::constants::samples_per_bit;
 
-use std::error::Error;
 
 use num_complex::Complex;
 use soapysdr::Direction::{Rx, Tx};
@@ -46,7 +46,6 @@ pub fn init_driver_sdr(channel: usize, _num: usize, freq: f64) -> Option<soapysd
 
 pub fn text_to_iq(text: &str) -> Vec<Complex<f32>> {
     let mut iq_data = Vec::new();
-    let samples_per_bit = 100;
 
     for _ in 0..20 {
         for _ in 0..samples_per_bit {
@@ -127,7 +126,6 @@ pub fn iq_to_text(samples: &[Complex<f32>]) -> Result<String, ReceiveError> {
     );
 
     let sync_pattern = [1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0];
-    let samples_per_bit = 100;
     let mut sync_found = false;
     let mut data_start = 0;
 
