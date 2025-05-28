@@ -97,7 +97,6 @@ pub fn text_to_iq(text: &str) -> Vec<Complex<f32>> {
 }
 
 pub fn iq_to_text(samples: &[Complex<f32>]) -> Result<String, ReceiveError> {
-    println!("Decoding {} samples", samples.len());
 
     if samples.len() < 100 {
         return Err(ReceiveError::NotEnough);
@@ -120,10 +119,6 @@ pub fn iq_to_text(samples: &[Complex<f32>]) -> Result<String, ReceiveError> {
         .map(|&p| if p > threshold { 1 } else { 0 })
         .collect();
 
-    println!(
-        "Converted to {} bits, looking for sync pattern...",
-        bits.len()
-    );
 
     let sync_pattern = [1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0];
     let mut sync_found = false;
@@ -157,16 +152,15 @@ pub fn iq_to_text(samples: &[Complex<f32>]) -> Result<String, ReceiveError> {
             sync_found = true;
             data_start = start + sync_pattern.len() * samples_per_bit;
             println!(
-                "Sync pattern found at position {}, data starts at {}",
-                start, data_start
+                "found {}",
+                start
             );
             break;
         }
     }
 
     if !sync_found {
-        println!("No sync pattern found, trying to find data after preamble...");
-        data_start = 2000;
+        return Err(ReceiveError::NoValid);
     }
 
     let mut text = String::new();
